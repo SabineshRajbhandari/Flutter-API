@@ -127,7 +127,9 @@ class _PostsScreenState extends State<PostsScreen> {
                                   _loadPosts();
                                   messenger.showSnackBar(
                                     SnackBar(
-                                      content: Text("Post  Successfully"),
+                                      content: Text(
+                                        "Post Created Successfully",
+                                      ),
                                     ),
                                   );
                                 })

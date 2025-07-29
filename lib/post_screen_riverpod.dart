@@ -1,66 +1,25 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:statement/models/post_model.dart';
-import 'package:statement/services/api_service.dart';
+import 'package:statement/provider/post_provider.dart';
 
-// class PostScreen extends ConsumerWidget {
-//   const PostScreen({super.key});
+class PostScreen extends ConsumerWidget {
+  PostScreen({super.key});
 
-//   @override
-//   Widget build(BuildContext context, WidgetRef ref) {
-//     return Container();
-//   }
-// }
-
-class PostsScreen extends StatefulWidget {
-  const PostsScreen({super.key});
-
-  @override
-  State<PostsScreen> createState() => _PostsScreenState();
-}
-
-class _PostsScreenState extends State<PostsScreen> {
-  List<Post> posts = [];
-  bool isLoading = false;
-  String? error;
   String? title;
   String? body;
-
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
-  Future<void> _loadPosts() async {
-    try {
-      setState(() {
-        isLoading = true;
-      });
-
-      posts = await ApiService.getPosts();
-
-      setState(() {
-        isLoading = false;
-      });
-    } catch (e) {
-      setState(() {
-        error = "Something Went Wrong: $e";
-        isLoading = false;
-      });
-    }
-  }
-
   @override
-  void initState() {
-    super.initState();
-    _loadPosts();
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final postAsyncValue = ref.watch(postProvider);
     return Scaffold(
       appBar: AppBar(
         title: Text("Posts"),
         actions: [
           IconButton(
             onPressed: () {
-              _loadPosts();
+              ref.read(postProvider.notifier).loadPosts();
             },
             icon: Icon(Icons.refresh),
           ),
@@ -124,34 +83,30 @@ class _PostsScreenState extends State<PostsScreen> {
                           final messenger = ScaffoldMessenger.of(context);
                           if (_formKey.currentState?.validate() == true) {
                             _formKey.currentState?.save();
-
-                            ApiService.createPost(
+                            ref
+                                .read(postProvider.notifier)
+                                .createPost(
                                   Post(
                                     userId: 1,
                                     body: body ?? "",
                                     title: title ?? "",
                                   ),
                                 )
-                                .then((response) {
-                                  _loadPosts();
+                                .then((value) {
                                   messenger.showSnackBar(
                                     SnackBar(
                                       content: Text(
-                                        "Post Created Successfully",
+                                        "Post created successfully!",
                                       ),
                                     ),
                                   );
                                 })
-                                .catchError((onError) {
+                                .catchError((e) {
                                   messenger.showSnackBar(
-                                    SnackBar(
-                                      content: Text("$onError"),
-                                      backgroundColor: Colors.red,
-                                    ),
+                                    SnackBar(content: Text("$e")),
                                   );
+                                  Navigator.of(context).pop();
                                 });
-
-                            Navigator.pop(context);
                           }
                         },
                         child: Text("Create Post"),
@@ -165,25 +120,31 @@ class _PostsScreenState extends State<PostsScreen> {
         },
         child: Icon(Icons.add),
       ),
-      body: isLoading
-          ? Center(child: CircularProgressIndicator())
-          : error == null
-          ? RefreshIndicator(
-              onRefresh: () async {
-                await _loadPosts();
+      body: postAsyncValue.when(
+        data: (posts) {
+          return RefreshIndicator(
+            onRefresh: () async {
+              ref.read(postProvider.notifier).loadPosts();
+            },
+            child: ListView.builder(
+              itemCount: posts.length,
+              itemBuilder: (context, index) {
+                return ListTile(
+                  leading: CircleAvatar(child: Text("${posts[index].id}")),
+                  title: Text(posts[index].title),
+                  subtitle: Text(posts[index].body),
+                );
               },
-              child: ListView.builder(
-                itemCount: posts.length,
-                itemBuilder: (context, index) {
-                  return ListTile(
-                    leading: CircleAvatar(child: Text("${posts[index].id}")),
-                    title: Text(posts[index].title),
-                    subtitle: Text(posts[index].body),
-                  );
-                },
-              ),
-            )
-          : Center(child: Text(error.toString())),
+            ),
+          );
+        },
+        error: (error, stackTrace) {
+          return Center(child: Text("Error: $error"));
+        },
+        loading: () {
+          return Center(child: CircularProgressIndicator());
+        },
+      ),
     );
   }
 }

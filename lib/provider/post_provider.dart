@@ -9,10 +9,10 @@ final postProvider =
 
 class PostNotifier extends StateNotifier<AsyncValue<List<Post>>> {
   PostNotifier() : super(const AsyncValue.loading()) {
-    _loadPosts();
+    loadPosts();
   }
 
-  Future<void> _loadPosts() async {
+  Future<void> loadPosts() async {
     try {
       state = AsyncValue.loading();
       final posts = await ApiService.getPosts();
@@ -25,7 +25,7 @@ class PostNotifier extends StateNotifier<AsyncValue<List<Post>>> {
   Future<void> createPost(Post post) async {
     try {
       await ApiService.createPost(post);
-      await _loadPosts();
+      await loadPosts();
     } catch (e, stackTrack) {
       state = AsyncValue.error(e, stackTrack);
     }
